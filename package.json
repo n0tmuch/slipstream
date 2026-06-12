@@ -1,0 +1,14 @@
+{
+  "name": "slipstream",
+  "version": "0.1.0",
+  "description": "One-button flow-state flight through an endless glowing canyon",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python3 -m http.server 8765"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "puppeteer-core": "^25.1.0"
+  }
+}

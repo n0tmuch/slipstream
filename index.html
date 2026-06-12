@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SLIPSTREAM</title>
+<meta name="description" content="One-button flow-state flight through an endless glowing canyon. Graze the walls. Don't touch them.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2319f2ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ff28dc'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --void: #04031a;
+    --cyan: #19f2ff;
+    --magenta: #ff28dc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--void);
+    color: var(--cyan);
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #fx { pointer-events: none; }
+  .hidden { display: none !important; }
+
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    text-shadow: 0 0 12px rgba(25,242,255,.7);
+  }
+  #hud-score {
+    position: absolute; top: 4vh; left: 50%; transform: translateX(-50%);
+    font-size: clamp(22px, 4.5vw, 40px); letter-spacing: .12em;
+  }
+  #hud-mult {
+    position: absolute; top: calc(4vh + clamp(30px, 6vw, 52px)); left: 50%; transform: translateX(-50%);
+    font-size: clamp(14px, 2.2vw, 20px); opacity: .75; transition: color .2s, opacity .2s;
+  }
+  #hud-mult.hot { color: var(--magenta); opacity: 1; text-shadow: 0 0 14px rgba(255,40,220,.8); }
+  #hud-dist {
+    position: absolute; bottom: 3vh; left: 3vw;
+    font-size: clamp(12px, 1.8vw, 16px); opacity: .6;
+  }
+
+  .overlay {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2.2vh;
+    text-align: center; pointer-events: none;
+    text-shadow: 0 0 16px rgba(25,242,255,.65);
+  }
+  .overlay > * { pointer-events: auto; }
+  h1 {
+    font-size: clamp(34px, 9vw, 84px); font-weight: 400;
+    letter-spacing: .32em; margin-left: .32em;
+    animation: pulse 3.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { text-shadow: 0 0 34px rgba(25,242,255,.95); } }
+  .sub { font-size: clamp(13px, 2vw, 17px); opacity: .8; line-height: 1.8; }
+  .stats { font-size: clamp(12px, 1.8vw, 15px); opacity: .6; }
+  .hint { font-size: clamp(12px, 1.8vw, 15px); opacity: .5; animation: blink 1.8s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .15; } }
+
+  button {
+    font: inherit; color: var(--cyan);
+    background: rgba(25,242,255,.06);
+    border: 1px solid rgba(25,242,255,.45);
+    border-radius: 4px; padding: .55em 1.3em;
+    letter-spacing: .14em; cursor: pointer;
+  }
+  button:hover { background: rgba(25,242,255,.16); }
+  button.active {
+    background: rgba(25,242,255,.22);
+    box-shadow: 0 0 14px rgba(25,242,255,.5);
+  }
+  .row { display: flex; gap: 12px; }
+
+  #dead-score { font-size: clamp(40px, 9vw, 90px); letter-spacing: .1em; }
+  #dead-best { color: var(--magenta); text-shadow: 0 0 14px rgba(255,40,220,.7); min-height: 1.2em; }
+  #dead-streak { min-height: 1.2em; opacity: .8; }
+
+  #mute {
+    position: fixed; top: 14px; right: 14px; z-index: 10;
+    border: none; background: none; font-size: 22px; padding: 8px;
+  }
+  #version { position: fixed; bottom: 8px; right: 12px; font-size: 11px; opacity: .3; }
+
+  #debug {
+    position: fixed; top: 14px; left: 14px; z-index: 10;
+    background: rgba(4,3,26,.85); border: 1px solid rgba(25,242,255,.35);
+    border-radius: 6px; padding: 12px; font-size: 12px;
+    display: flex; flex-direction: column; gap: 8px; max-width: 320px;
+  }
+  #debug button { padding: .35em .8em; font-size: 12px; }
+  #debug label { display: flex; gap: 6px; align-items: center; opacity: .85; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<canvas id="fx"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="hud-score">0</div>
+  <div id="hud-mult">x1.0</div>
+  <div id="hud-dist">0m</div>
+</div>
+
+<div id="title" class="overlay hidden">
+  <h1>SLIPSTREAM</h1>
+  <div class="sub">hold to rise · release to dive<br>graze the walls to charge the slipstream</div>
+  <div class="row">
+    <button data-mode="daily">daily <span id="title-date"></span></button>
+    <button data-mode="endless">endless</button>
+  </div>
+  <div class="stats" id="title-stats"></div>
+  <div class="hint">press &amp; hold anywhere</div>
+</div>
+
+<div id="dead" class="overlay hidden">
+  <div id="dead-score">0</div>
+  <div class="sub" id="dead-detail"></div>
+  <div id="dead-best"></div>
+  <div id="dead-streak"></div>
+  <div class="row">
+    <button id="share">share</button>
+    <button id="again">fly again</button>
+  </div>
+  <div class="row">
+    <button data-mode="daily">daily</button>
+    <button data-mode="endless">endless</button>
+  </div>
+</div>
+
+<div id="debug" class="hidden">
+  <div>FEEL VARIANT</div>
+  <div class="row" id="debug-feels"></div>
+  <label><input type="checkbox" id="debug-god"> god mode (no collision)</label>
+  <div id="debug-stats"></div>
+</div>
+
+<button id="mute">🔊</button>
+<div id="version"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
