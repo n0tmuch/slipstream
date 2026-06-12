@@ -21,6 +21,8 @@ uniform float uSpeed01;        // 0..1 normalized speed
 uniform float uNear01;         // 0..1 near-miss intensity
 uniform float uDeath;          // 1 briefly on death
 uniform vec3 uTint;            // wall/glow color (palette drift; classic = cyan)
+uniform vec4 uTrail[16];       // mote flight history: xyz pos, w fade (1=head)
+uniform int uTrailN;
 
 uniform vec3 uCX[4];           // (amp, freq, phase) — seeded harmonics
 uniform vec3 uCY[4];
@@ -117,6 +119,20 @@ void main() {
   if (uNear01 > 0.001) {
     vec3 p = ro + rd * min(t, maxDist);
     col += MAGENTA * uNear01 * 1.1 * exp(-length(p - uPlayer) * 0.5);
+  }
+
+  // light ribbon: the mote's recent path as a chain of volumetric glows,
+  // bright/tight at the head, dimmer/wider as it ages; heats up while skimming
+  vec3 trailCol = mix(uTint * 0.85 + vec3(0.18), MAGENTA, uNear01 * 0.55);
+  for (int i = 0; i < 16; i++) {
+    if (i >= uTrailN) break;
+    vec3 toT = uTrail[i].xyz - ro;
+    float fade = uTrail[i].w;
+    float tt = max(dot(toT, rd), 0.0);
+    if (t > tt - 0.4) {
+      float h2 = dot(toT - rd * tt, toT - rd * tt);
+      col += trailCol * min(0.0016 * fade / (h2 + 0.0012 + 0.006 * (1.0 - fade)), 2.0);
+    }
   }
 
   // the player mote: bright point glow, occluded by walls
@@ -291,6 +307,11 @@ export function createGLRenderer(canvas) {
     gl.uniform1f(uni(march, 'uNear01'), s.near01);
     gl.uniform1f(uni(march, 'uDeath'), s.death);
     gl.uniform3fv(uni(march, 'uTint'), s.tint);
+    const tr = s.trail || [];
+    const trArr = new Float32Array(64);
+    for (let i = 0; i < Math.min(tr.length, 16); i++) trArr.set(tr[i], i * 4);
+    gl.uniform4fv(uni(march, 'uTrail'), trArr);
+    gl.uniform1i(uni(march, 'uTrailN'), Math.min(tr.length, 16));
     gl.bindVertexArray(vao);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 

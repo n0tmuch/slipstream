@@ -57,6 +57,16 @@ export async function createThreeRenderer(canvas) {
   sprite.scale.set(1.6, 1.6, 1);
   scene.add(sprite);
 
+  // light ribbon fallback: additive polyline through the trail history
+  const trailGeo = new THREE.BufferGeometry();
+  const trailPos = new Float32Array(16 * 3);
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+  const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
+    color: 0x9ff8ff, transparent: true, opacity: 0.55,
+    blending: THREE.AdditiveBlending, depthTest: false,
+  }));
+  scene.add(trailLine);
+
   let W = 0, H = 0;
 
   function resize(w, h) {
@@ -94,6 +104,14 @@ export async function createThreeRenderer(canvas) {
     }
 
     sprite.position.set(...s.player);
+
+    const tr = s.trail || [];
+    trailLine.visible = tr.length >= 2;
+    if (trailLine.visible) {
+      for (let i = 0; i < Math.min(tr.length, 16); i++) trailPos.set(tr[i].slice(0, 3), i * 3);
+      trailGeo.setDrawRange(0, Math.min(tr.length, 16));
+      trailGeo.attributes.position.needsUpdate = true;
+    }
     renderer.render(scene, camera);
   }
 

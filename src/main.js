@@ -45,9 +45,17 @@ let mode = store.get('mode', 'daily');
 let feelKey = store.get('feel', 'B');
 let diffKey = store.get('difficulty', 'flow');
 let hueDrift = store.get('hueDrift', true); // off = classic all-cyan (v0.1.0 look)
-let dustOn = store.get('stardust', true);
-let dustAcc = 0;
+let trailOn = store.get('stardust', true); // key kept from 0.4.0 for continuity
+let trail = []; // mote flight history, head first: [x, y, z]
 let optionsReturn = null; // which overlay the options sheet came from
+
+function pushTrail(x, y, z) {
+  const h = trail[0];
+  if (!h || Math.hypot(x - h[0], y - h[1], z - h[2]) > 1.0) {
+    trail.unshift([x, y, z]);
+    if (trail.length > 16) trail.pop();
+  }
+}
 let godMode = false;
 let hold = false;
 let run = null;
@@ -135,6 +143,7 @@ function startRun() {
   };
   camX = c0.x; camY = c0.y;
   near01 = 0; shake = 0; flash = 0; deathGlow = 0;
+  trail = [];
   particles.clear();
   audio.resetLadder();
   state = 'playing';
@@ -155,6 +164,7 @@ function finishDeath() {
   state = 'dead';
   deadAt = performance.now();
   shake = 1.5;
+  trail = []; // the mote is gone; so is its light
   const pos = renderer.project([run.px, run.py, run.z], cssW, cssH) || { x: cssW / 2, y: cssH / 2 };
   particles.burst(pos.x, pos.y, 60, { color: '255,40,220', speed: 360, ttl: 0.9, size: 3.2, drag: 2.8 });
   particles.burst(pos.x, pos.y, 50, { color: '60,240,255', speed: 280, ttl: 1.1, size: 2.6, drag: 2.2 });
@@ -294,14 +304,14 @@ $('options-done').addEventListener('click', (e) => {
 
 function updateDustButtons() {
   for (const el of document.querySelectorAll('[data-dust]')) {
-    el.classList.toggle('active', el.dataset.dust === (dustOn ? 'on' : 'off'));
+    el.classList.toggle('active', el.dataset.dust === (trailOn ? 'on' : 'off'));
   }
 }
 for (const el of document.querySelectorAll('[data-dust]')) {
   el.addEventListener('click', (e) => {
     e.stopPropagation();
-    dustOn = el.dataset.dust === 'on';
-    store.set('stardust', dustOn);
+    trailOn = el.dataset.dust === 'on';
+    store.set('stardust', trailOn);
     updateDustButtons();
   });
 }
@@ -425,23 +435,11 @@ function update(dt, time) {
     attractZ += 18 * dt;
   }
 
-  // stardust shed by the mote into world space
-  if (dustOn && (state === 'playing' || state === 'title')) {
-    let pos, rate;
-    if (state === 'playing') {
-      const s01 = Math.max(0, Math.min(1, (speedAt(run.t, run.diff) - run.diff.speedBase) / 110));
-      rate = 70 * (0.6 + s01);
-      pos = [run.px, run.py, run.z];
-    } else {
-      const c = canyonCenter(titleCanyon, attractZ);
-      rate = 22;
-      pos = [c.x, c.y, attractZ];
-    }
-    dustAcc += rate * dt;
-    while (dustAcc >= 1) {
-      dustAcc -= 1;
-      particles.spawnDust(pos[0], pos[1], pos[2]);
-    }
+  // record the mote's path for the light ribbon
+  if (state === 'playing') pushTrail(run.px, run.py, run.z);
+  else if (state === 'title') {
+    const c = canyonCenter(titleCanyon, attractZ);
+    pushTrail(c.x, c.y, attractZ);
   }
 
   // decay envelopes
@@ -495,8 +493,9 @@ function render(time) {
     flash,
     dim: state === 'dead' ? 0.55 : 1,
     tint: tintAt(z),
+    trail: trailOn ? trail.map((p, i) => [p[0], p[1], p[2], Math.pow(1 - i / 16, 1.5)]) : [],
   });
-  particles.draw((p) => renderer.project(p, cssW, cssH));
+  particles.draw();
 }
 
 // ---------- HUD + adaptive quality ----------

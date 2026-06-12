@@ -1,7 +1,7 @@
 // core.js — pure game logic. No DOM, no WebGL, no audio. Tests import only this file.
 // NOTE: canyonCenter/canyonRadius/difficultyEnv are mirrored in GLSL in render_gl.js.
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 
 // Difficulty: shapes both the canyon (envK = how fast it tightens/wanders with
 // distance, shrink = how narrow it ends up, wander = bend amplitude) and the
