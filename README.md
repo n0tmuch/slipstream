@@ -2,6 +2,8 @@
 
 One-button flow-state flight through an endless, procedurally generated glowing canyon.
 
+**Play it: https://n0tmuch.github.io/slipstream/**
+
 **Hold** to rise. **Release** to dive. Graze the walls to charge the slipstream multiplier — touch them and the run ends. Speed ramps forever.
 
 - **Daily mode** — everyone flies the same canyon (seeded by the UTC date). Build a streak.
