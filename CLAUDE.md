@@ -11,6 +11,7 @@ A one-button flow-state flight game: a mote of light flying through an endless, 
 - `src/audio.js` — all synthesized (Tone.js, no audio files). E-minor-pentatonic everywhere. Starts on first user gesture only (autoplay policy).
 - Feel variants A/B/C (gravity/lift/near-miss threshold) live in `FEEL` in `main.js`, switchable in the debug panel (` key).
 - Daily seed = UTC date string `YYYY-MM-DD`; endless = random seed. localStorage keys all prefixed `slipstream.`.
+- Palette drift (0.2.0): `wallHueAt(z)` in core.js → tint computed JS-side, passed as `uTint` uniform (no GLSL parity needed). Void + magenta never drift. Debug toggle "hue drift" off = exact v0.1.0 look. `window.__slip` is a dev hook for the verify harness (warp/god/hue).
 
 ## Rules
 - Single static page, no bundler, no npm runtime deps (CDN only). `puppeteer-core` is a devDependency for verification only.

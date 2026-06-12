@@ -4,6 +4,7 @@ import {
   hashSeed, mulberry32, dailySeedString, makeCanyon,
   canyonCenter, canyonRadius, wallDistance, speedAt,
   createScore, updateScore, updateStreak, shareCard,
+  wallHueAt, HUE_BASE, HUE_ANCHORS, HUE_ZONE_M,
   BASE_RADIUS, WALL_MARGIN, MULT_MAX,
 } from '../src/core.js';
 
@@ -112,6 +113,27 @@ test('streak: consecutive days increment, gaps reset, same day idempotent', () =
   assert.equal(updateStreak(3, '2026-05-31', '2026-06-01'), 4);
   // year boundary
   assert.equal(updateStreak(9, '2025-12-31', '2026-01-01'), 10);
+});
+
+test('palette drift: classic cyan start, smooth, periodic, in range', () => {
+  // the whole first zone is exactly the base hue — game always starts classic
+  for (let z = 0; z <= HUE_ZONE_M; z += 100) assert.equal(wallHueAt(z), HUE_BASE);
+  // drifts away after that
+  assert.notEqual(Math.round(wallHueAt(HUE_ZONE_M * 2.5)), HUE_BASE);
+  const period = HUE_ANCHORS.length * HUE_ZONE_M;
+  for (const z of [0, 1234, 5000, 9999]) {
+    assert.ok(Math.abs(wallHueAt(z) - wallHueAt(z + period)) < 1e-9, `periodic at z=${z}`);
+  }
+  // smooth: steepest legit blend (violet→cyan, 88°/zone) peaks ~0.66°/10m;
+  // a zone-boundary discontinuity would be tens of degrees
+  let prev = wallHueAt(0);
+  for (let z = 10; z <= period; z += 10) {
+    const h = wallHueAt(z);
+    const d = Math.abs(((h - prev + 540) % 360) - 180);
+    assert.ok(d < 0.8, `hue jump ${d.toFixed(3)}° at z=${z}`);
+    assert.ok(h >= 0 && h < 360);
+    prev = h;
+  }
 });
 
 test('share card formats deterministically', () => {

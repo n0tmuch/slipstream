@@ -85,7 +85,11 @@ export async function createThreeRenderer(canvas) {
       ring.position.set(ctr.x, ctr.y, z);
       ring.scale.set(r, r, 1);
       const heat = s.near01 * 0.8;
-      ring.material.color.setRGB(0.1 + heat * 0.9, 0.95 - heat * 0.6, 1.0 - heat * 0.1);
+      const [tr, tg, tb] = s.tint;
+      ring.material.color.setRGB(
+        tr + heat * (1.0 - tr),
+        tg + heat * (0.16 - tg) * 0.7,
+        tb + heat * (0.86 - tb) * 0.7);
       ring.material.opacity = 0.35 + s.speed01 * 0.4;
     }
 

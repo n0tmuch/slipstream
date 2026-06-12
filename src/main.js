@@ -2,7 +2,7 @@
 import {
   VERSION, dailySeedString, makeCanyon, canyonCenter, canyonRadius,
   wallDistance, speedAt, createScore, updateScore, updateStreak, shareCard,
-  WALL_MARGIN, MULT_MAX,
+  WALL_MARGIN, MULT_MAX, wallHueAt, HUE_BASE,
 } from './core.js';
 import { createGLRenderer } from './render_gl.js';
 import { createParticles } from './particles.js';
@@ -43,6 +43,7 @@ let audio = createAudio();
 let state = 'boot'; // boot | title | playing | hitstop | dead
 let mode = store.get('mode', 'daily');
 let feelKey = store.get('feel', 'B');
+let hueDrift = store.get('hueDrift', true); // off = classic all-cyan (v0.1.0 look)
 let godMode = false;
 let hold = false;
 let run = null;
@@ -75,7 +76,7 @@ function probeGL(r, canyon) {
   const st = {
     time: 0, camPos: [0, 0, 2], lookAt: [0, 0, 12], fovDeg: 72,
     player: [0, 0, 9], speed01: 0.5, near01: 0, death: 0,
-    ca: 0.004, streak: 0.01, flash: 0, dim: 1,
+    ca: 0.004, streak: 0.01, flash: 0, dim: 1, tint: [0.1, 0.95, 1],
   };
   r.render(st); r.readPixel(); // warm up compile
   const t0 = performance.now();
@@ -276,6 +277,23 @@ function updateFeelButtons() {
   }
 }
 $('debug-god').addEventListener('change', (e) => { godMode = e.target.checked; });
+$('debug-hue').checked = hueDrift;
+$('debug-hue').addEventListener('change', (e) => {
+  hueDrift = e.target.checked;
+  store.set('hueDrift', hueDrift);
+});
+
+// electric palette: hue in degrees → rgb at full glow saturation
+function hsv(h, s, v) {
+  const f = (n) => {
+    const k = (n + h / 60) % 6;
+    return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+  };
+  return [f(5), f(3), f(1)];
+}
+function tintAt(z) {
+  return hsv(hueDrift ? wallHueAt(z) : HUE_BASE, 0.9, 1);
+}
 
 // ---------- per-frame update ----------
 function update(dt, time) {
@@ -391,6 +409,7 @@ function render(time) {
     streak: 0.003 + speed01 * 0.016,
     flash,
     dim: state === 'dead' ? 0.55 : 1,
+    tint: tintAt(z),
   });
   particles.draw();
 }
@@ -452,3 +471,16 @@ async function boot() {
 }
 
 boot();
+
+// dev hook for the headless verify harness — not a public API
+window.__slip = {
+  warp(z) {
+    if (!run) return;
+    run.z = z;
+    const c = canyonCenter(run.canyon, z);
+    run.px = c.x; run.py = c.y; run.vy = 0;
+    camX = c.x; camY = c.y;
+  },
+  god(v) { godMode = !!v; },
+  hue(v) { hueDrift = !!v; },
+};

@@ -1,7 +1,7 @@
 // core.js — pure game logic. No DOM, no WebGL, no audio. Tests import only this file.
 // NOTE: canyonCenter/canyonRadius/difficultyEnv are mirrored in GLSL in render_gl.js.
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 export const BASE_RADIUS = 6.0;
 export const WALL_MARGIN = 0.35; // gameplay margin under the visual fbm bumps
@@ -111,6 +111,27 @@ export function updateScore(s, dt, speed, wallDist, threshold) {
   if (s.mult > s.peakMult) s.peakMult = s.mult;
   s.score += speed * dt * s.mult;
   return near;
+}
+
+// ---------- palette drift ----------
+
+// Wall-tint hue (degrees) vs distance. Zone 0→1 is constant base cyan so the
+// game always starts classic; then 2km zones ease azure → violet → cyan → teal.
+// The void stays indigo and magenta stays the reward color — only this drifts.
+export const HUE_BASE = 187;
+// violet capped at 265° to keep clear daylight from magenta (~310°), the reward color
+export const HUE_ANCHORS = [187, 187, 222, 265, 187, 160];
+export const HUE_ZONE_M = 2000;
+
+export function wallHueAt(z) {
+  const n = HUE_ANCHORS.length;
+  const f = Math.max(0, z) / HUE_ZONE_M;
+  const i = Math.floor(f) % n;
+  const t = f - Math.floor(f);
+  const s = t * t * (3 - 2 * t);
+  const a = HUE_ANCHORS[i], b = HUE_ANCHORS[(i + 1) % n];
+  const d = ((b - a + 540) % 360) - 180; // shortest-path hue blend
+  return (a + d * s + 360) % 360;
 }
 
 // ---------- daily streak ----------

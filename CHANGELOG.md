@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 — 2026-06-11
+- Palette drift: wall/glow hue now eases through 2km zones (cyan → azure → violet → cyan → teal, 12km cycle). First 2km stays classic cyan; the indigo void and magenta reward color never drift; violet capped at 265° to keep sparks distinct.
+- Rollback: debug-panel toggle "hue drift" (off = exact v0.1.0 all-cyan look, persisted), or `git checkout v0.1.0`. Release tags v0.1.0 / v0.2.0 added.
+- Default feel variant confirmed as B (tight) — unchanged.
+- Unit test for the palette function (classic start zone, smoothness, periodicity).
+
 ## 0.1.0 — 2026-06-11
 Initial release.
 - One-button flight (hold = rise, release = dive; touch / mouse / any key) through an endless seeded-harmonic canyon; speed ramps forever.

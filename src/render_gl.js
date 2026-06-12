@@ -20,15 +20,15 @@ uniform vec3 uPlayer;
 uniform float uSpeed01;        // 0..1 normalized speed
 uniform float uNear01;         // 0..1 near-miss intensity
 uniform float uDeath;          // 1 briefly on death
+uniform vec3 uTint;            // wall/glow color (palette drift; classic = cyan)
 
 uniform vec3 uCX[4];           // (amp, freq, phase) — seeded harmonics
 uniform vec3 uCY[4];
 uniform vec3 uRH[3];
 uniform float uBaseR;
 
-const vec3 VOID    = vec3(0.016, 0.012, 0.075); // deep indigo
-const vec3 CYAN    = vec3(0.10, 0.95, 1.00);
-const vec3 MAGENTA = vec3(1.00, 0.15, 0.85);
+const vec3 VOID    = vec3(0.016, 0.012, 0.075); // deep indigo — never drifts
+const vec3 MAGENTA = vec3(1.00, 0.15, 0.85);    // reward color — never drifts
 
 float env(float z) { return 1.0 - exp(-z * 0.0018); }
 
@@ -103,14 +103,14 @@ void main() {
     float ribs  = smoothstep(0.90, 1.0, abs(sin(ang * 7.0 + p.z * 0.12)));
     float n = fbm(vec3(q * 0.6, p.z * 0.3));
     vec3 wall = VOID * 2.2
-              + CYAN * (rings * (1.4 + uSpeed01) + ribs * 0.55) * (0.55 + 0.9 * n);
+              + uTint * (rings * (1.4 + uSpeed01) + ribs * 0.55) * (0.55 + 0.9 * n);
     float fog = 1.0 - exp(-t * 0.05);
     col = mix(wall, VOID, fog);
   } else {
     col = VOID;
   }
 
-  col += CYAN * glow * (0.85 + uNear01 * 1.3 + uSpeed01 * 0.45);
+  col += uTint * glow * (0.85 + uNear01 * 1.3 + uSpeed01 * 0.45);
 
   // magenta energy clinging to walls near the player while skimming
   if (uNear01 > 0.001) {
@@ -124,7 +124,7 @@ void main() {
   if (t > tp - 0.4) {
     float h = length(toP - rd * tp);
     float mote = min(0.0035 / (h * h + 0.0008), 5.0);
-    col += (CYAN * 0.7 + vec3(0.5)) * mote;
+    col += (uTint * 0.7 + vec3(0.5)) * mote;
     col += MAGENTA * uNear01 * min(0.0012 / (h * h + 0.001), 2.0);
   }
 
@@ -286,6 +286,7 @@ export function createGLRenderer(canvas) {
     gl.uniform1f(uni(march, 'uSpeed01'), s.speed01);
     gl.uniform1f(uni(march, 'uNear01'), s.near01);
     gl.uniform1f(uni(march, 'uDeath'), s.death);
+    gl.uniform3fv(uni(march, 'uTint'), s.tint);
     gl.bindVertexArray(vao);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
