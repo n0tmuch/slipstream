@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-06-11
+- Difficulty select: **glide** (chill — wider canyon, gentler bends, slower ramp), **flow** (the original tuning, still the default), **surge** (expert — faster ramp, narrower walls, wilder wander). Buttons on title + death screens, persisted.
+- Difficulty shapes the canyon itself (envK/shrink/wander baked into the canyon object, mirrored as shader uniforms) and the speed curve — not just a score scalar.
+- Best scores tracked per difficulty (pre-0.3.0 bests count as flow's); daily streak counts any difficulty; share card names the difficulty so runs can't masquerade.
+- Tests: difficulty speed/width/wander ordering, determinism, flow back-compat.
+
 ## 0.2.0 — 2026-06-11
 - Palette drift: wall/glow hue now eases through 2km zones (cyan → azure → violet → cyan → teal, 12km cycle). First 2km stays classic cyan; the indigo void and magenta reward color never drift; violet capped at 265° to keep sparks distinct.
 - Rollback: debug-panel toggle "hue drift" (off = exact v0.1.0 all-cyan look, persisted), or `git checkout v0.1.0`. Release tags v0.1.0 / v0.2.0 added.

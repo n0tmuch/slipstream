@@ -4,7 +4,7 @@ import {
   hashSeed, mulberry32, dailySeedString, makeCanyon,
   canyonCenter, canyonRadius, wallDistance, speedAt,
   createScore, updateScore, updateStreak, shareCard,
-  wallHueAt, HUE_BASE, HUE_ANCHORS, HUE_ZONE_M,
+  wallHueAt, HUE_BASE, HUE_ANCHORS, HUE_ZONE_M, DIFFICULTY,
   BASE_RADIUS, WALL_MARGIN, MULT_MAX,
 } from '../src/core.js';
 
@@ -115,6 +115,38 @@ test('streak: consecutive days increment, gaps reset, same day idempotent', () =
   assert.equal(updateStreak(9, '2025-12-31', '2026-01-01'), 10);
 });
 
+test('difficulty: glide is slower and roomier than flow; surge faster and tighter', () => {
+  const { glide, flow, surge } = DIFFICULTY;
+  for (const t of [0, 30, 120, 600]) {
+    assert.ok(speedAt(t, glide) < speedAt(t, flow), `glide slower at t=${t}`);
+    assert.ok(speedAt(t, flow) < speedAt(t, surge), `surge faster at t=${t}`);
+  }
+  const seed = '2026-06-11';
+  const cg = makeCanyon(seed, glide), cf = makeCanyon(seed, flow), cs = makeCanyon(seed, surge);
+  // deep in: glide never narrower than flow, surge never wider (the 2.2m
+  // radius floor can make them momentarily equal); surge wanders hardest
+  for (let z = 3000; z <= 12000; z += 500) {
+    assert.ok(canyonRadius(cg, z) >= canyonRadius(cf, z), `glide narrower at z=${z}`);
+    assert.ok(canyonRadius(cs, z) <= canyonRadius(cf, z), `surge wider at z=${z}`);
+    const g = canyonCenter(cg, z), s = canyonCenter(cs, z);
+    assert.ok(Math.hypot(s.x, s.y) >= Math.hypot(g.x, g.y), `surge wanders more at z=${z}`);
+  }
+  assert.ok(canyonRadius(cg, 5000) > canyonRadius(cf, 5000));
+  assert.ok(canyonRadius(cs, 5000) < canyonRadius(cf, 5000));
+});
+
+test('difficulty is deterministic and default stays flow-compatible', () => {
+  const seed = '2026-06-11';
+  assert.deepEqual(makeCanyon(seed, DIFFICULTY.surge), makeCanyon(seed, DIFFICULTY.surge));
+  // no diff arg === flow (pre-0.3.0 behavior preserved)
+  assert.deepEqual(makeCanyon(seed), makeCanyon(seed, DIFFICULTY.flow));
+  assert.equal(speedAt(42), speedAt(42, DIFFICULTY.flow));
+  // same seed, different difficulty → same harmonics, different geometry
+  const g = makeCanyon(seed, DIFFICULTY.glide), s = makeCanyon(seed, DIFFICULTY.surge);
+  assert.deepEqual(g.cx, s.cx);
+  assert.notEqual(canyonRadius(g, 5000), canyonRadius(s, 5000));
+});
+
 test('palette drift: classic cyan start, smooth, periodic, in range', () => {
   // the whole first zone is exactly the base hue — game always starts classic
   for (let z = 0; z <= HUE_ZONE_M; z += 100) assert.equal(wallHueAt(z), HUE_BASE);
@@ -142,7 +174,7 @@ test('share card formats deterministically', () => {
     peakMult: 7.23, streak: 3, best: true,
   });
   assert.equal(card, [
-    '🛸 SLIPSTREAM 2026-06-11',
+    '🛸 SLIPSTREAM 2026-06-11 · FLOW',
     '▰▰▰▰▰▰▰▰▱▱ 4,231m',
     '⚡ x7.2 peak',
     '🔥 3-day streak',

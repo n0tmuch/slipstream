@@ -26,14 +26,15 @@ uniform vec3 uCX[4];           // (amp, freq, phase) — seeded harmonics
 uniform vec3 uCY[4];
 uniform vec3 uRH[3];
 uniform float uBaseR;
+uniform float uEnvK, uShrink, uWander; // difficulty — must mirror core.js
 
 const vec3 VOID    = vec3(0.016, 0.012, 0.075); // deep indigo — never drifts
 const vec3 MAGENTA = vec3(1.00, 0.15, 0.85);    // reward color — never drifts
 
-float env(float z) { return 1.0 - exp(-z * 0.0018); }
+float env(float z) { return 1.0 - exp(-z * uEnvK); }
 
 vec2 center(float z) {
-  float e = 0.25 + 0.75 * env(z);
+  float e = (0.25 + 0.75 * env(z)) * uWander;
   float x = 0.0, y = 0.0;
   for (int i = 0; i < 4; i++) {
     x += uCX[i].x * sin(uCX[i].y * z + uCX[i].z);
@@ -43,7 +44,7 @@ vec2 center(float z) {
 }
 
 float radius(float z) {
-  float r = uBaseR * (1.0 - 0.28 * env(z));
+  float r = uBaseR * (1.0 - uShrink * env(z));
   for (int i = 0; i < 3; i++) r += uRH[i].x * sin(uRH[i].y * z + uRH[i].z);
   return max(2.2, r);
 }
@@ -241,6 +242,9 @@ export function createGLRenderer(canvas) {
     gl.uniform3fv(uni(march, 'uCY'), new Float32Array(pack(canyon.cy)));
     gl.uniform3fv(uni(march, 'uRH'), new Float32Array(pack(canyon.r)));
     gl.uniform1f(uni(march, 'uBaseR'), canyon.baseRadius);
+    gl.uniform1f(uni(march, 'uEnvK'), canyon.envK ?? 0.0018);
+    gl.uniform1f(uni(march, 'uShrink'), canyon.shrink ?? 0.28);
+    gl.uniform1f(uni(march, 'uWander'), canyon.wander ?? 1.0);
   }
 
   function resize(w, h) {

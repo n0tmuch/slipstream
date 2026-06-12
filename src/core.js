@@ -1,7 +1,16 @@
 // core.js — pure game logic. No DOM, no WebGL, no audio. Tests import only this file.
 // NOTE: canyonCenter/canyonRadius/difficultyEnv are mirrored in GLSL in render_gl.js.
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
+
+// Difficulty: shapes both the canyon (envK = how fast it tightens/wanders with
+// distance, shrink = how narrow it ends up, wander = bend amplitude) and the
+// speed curve. 'flow' is the original tuning; defaults below keep it that way.
+export const DIFFICULTY = {
+  glide: { key: 'glide', envK: 0.0011, shrink: 0.16, wander: 0.78, speedBase: 22, speedRamp: 46, rampT: 95, tail: 0.07 },
+  flow:  { key: 'flow',  envK: 0.0018, shrink: 0.28, wander: 1.00, speedBase: 26, speedRamp: 64, rampT: 75, tail: 0.16 },
+  surge: { key: 'surge', envK: 0.0028, shrink: 0.34, wander: 1.15, speedBase: 32, speedRamp: 84, rampT: 55, tail: 0.26 },
+};
 
 export const BASE_RADIUS = 6.0;
 export const WALL_MARGIN = 0.35; // gameplay margin under the visual fbm bumps
@@ -39,7 +48,7 @@ export function dailySeedString(d = new Date()) {
 
 // ---------- canyon ----------
 
-export function makeCanyon(seedStr) {
+export function makeCanyon(seedStr, diff = DIFFICULTY.flow) {
   const rand = mulberry32(hashSeed(seedStr));
   const harm = (n, aLo, aHi, fLo, fHi) =>
     Array.from({ length: n }, () => ({
@@ -53,11 +62,14 @@ export function makeCanyon(seedStr) {
     cy: harm(4, 0.6, 2.0, 0.012, 0.070),
     r: harm(3, 0.4, 1.1, 0.020, 0.080),
     baseRadius: BASE_RADIUS,
+    envK: diff.envK,
+    shrink: diff.shrink,
+    wander: diff.wander,
   };
 }
 
-export function difficultyEnv(z) {
-  return 1 - Math.exp(-z * 0.0018);
+export function difficultyEnv(z, k = DIFFICULTY.flow.envK) {
+  return 1 - Math.exp(-z * k);
 }
 
 function sumHarm(hs, z) {
@@ -67,13 +79,13 @@ function sumHarm(hs, z) {
 }
 
 export function canyonCenter(canyon, z) {
-  const e = 0.25 + 0.75 * difficultyEnv(z);
+  const e = (0.25 + 0.75 * difficultyEnv(z, canyon.envK)) * (canyon.wander ?? 1);
   return { x: sumHarm(canyon.cx, z) * e, y: sumHarm(canyon.cy, z) * e };
 }
 
 export function canyonRadius(canyon, z) {
-  const e = difficultyEnv(z);
-  const r = canyon.baseRadius * (1 - 0.28 * e) + sumHarm(canyon.r, z);
+  const e = difficultyEnv(z, canyon.envK);
+  const r = canyon.baseRadius * (1 - (canyon.shrink ?? 0.28) * e) + sumHarm(canyon.r, z);
   return Math.max(2.2, r);
 }
 
@@ -88,8 +100,8 @@ export function wallDistance(canyon, x, y, z) {
 // ---------- speed & scoring ----------
 
 // Ramps quickly early, then keeps climbing forever (linear tail).
-export function speedAt(t) {
-  return 26 + 64 * (1 - Math.exp(-t / 75)) + t * 0.16;
+export function speedAt(t, diff = DIFFICULTY.flow) {
+  return diff.speedBase + diff.speedRamp * (1 - Math.exp(-t / diff.rampT)) + t * diff.tail;
 }
 
 export function createScore() {
@@ -151,14 +163,14 @@ export function updateStreak(prevStreak, lastDate, today) {
 
 // ---------- share card ----------
 
-export function shareCard({ mode, dateStr, distance, peakMult, streak, best }) {
+export function shareCard({ mode, dateStr, distance, peakMult, streak, best, difficulty = 'flow' }) {
   const m = Math.floor(distance);
   // log-scaled bar: full at ~30km
   const frac = Math.max(0, Math.min(1, Math.log10(1 + m) / 4.5));
   const filled = Math.round(frac * 10);
   const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
   const lines = [
-    `🛸 SLIPSTREAM ${mode === 'daily' ? dateStr : '∞ endless'}`,
+    `🛸 SLIPSTREAM ${mode === 'daily' ? dateStr : '∞ endless'} · ${difficulty.toUpperCase()}`,
     `${bar} ${m.toLocaleString('en-US')}m`,
     `⚡ x${peakMult.toFixed(1)} peak`,
   ];

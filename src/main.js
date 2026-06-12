@@ -2,7 +2,7 @@
 import {
   VERSION, dailySeedString, makeCanyon, canyonCenter, canyonRadius,
   wallDistance, speedAt, createScore, updateScore, updateStreak, shareCard,
-  WALL_MARGIN, MULT_MAX, wallHueAt, HUE_BASE,
+  WALL_MARGIN, MULT_MAX, wallHueAt, HUE_BASE, DIFFICULTY,
 } from './core.js';
 import { createGLRenderer } from './render_gl.js';
 import { createParticles } from './particles.js';
@@ -43,6 +43,7 @@ let audio = createAudio();
 let state = 'boot'; // boot | title | playing | hitstop | dead
 let mode = store.get('mode', 'daily');
 let feelKey = store.get('feel', 'B');
+let diffKey = store.get('difficulty', 'flow');
 let hueDrift = store.get('hueDrift', true); // off = classic all-cyan (v0.1.0 look)
 let godMode = false;
 let hold = false;
@@ -55,6 +56,7 @@ let cssW = 0, cssH = 0, dpr = 1;
 let titleCanyon = null;
 
 function feel() { return FEEL[feelKey]; }
+function diff() { return DIFFICULTY[diffKey] || DIFFICULTY.flow; }
 
 function currentSeed() {
   return mode === 'daily' ? dailySeedString() : 'endless-' + Math.random().toString(36).slice(2, 10);
@@ -117,11 +119,12 @@ async function createThreeFallback() {
 // ---------- run lifecycle ----------
 function startRun() {
   const seed = currentSeed();
-  const canyon = makeCanyon(seed);
+  const canyon = makeCanyon(seed, diff());
   renderer.setCanyon(canyon);
   const c0 = canyonCenter(canyon, 0);
   run = {
     seed, canyon,
+    diff: diff(), diffKey,
     score: createScore(),
     t: 0, z: 0,
     px: c0.x, py: c0.y, vy: 0,
@@ -157,19 +160,15 @@ function finishDeath() {
   const s = run.score;
   const today = dailySeedString();
   let isBest = false, streak = 0;
+  const prev = bestFor(mode, today, run.diffKey);
+  isBest = s.score > prev;
+  if (isBest) store.set(bestKey(mode, today, run.diffKey), Math.floor(s.score));
   if (mode === 'daily') {
-    const key = 'best.daily.' + today;
-    const prev = store.get(key, 0);
-    isBest = s.score > prev;
-    if (isBest) store.set(key, Math.floor(s.score));
+    // streak counts any daily run, on any difficulty
     const lastDate = store.get('daily.last', null);
     streak = updateStreak(store.get('daily.streak', 0), lastDate, today);
     store.set('daily.streak', streak);
     store.set('daily.last', today);
-  } else {
-    const prev = store.get('best.endless', 0);
-    isBest = s.score > prev;
-    if (isBest) store.set('best.endless', Math.floor(s.score));
   }
   run.isBest = isBest;
   run.streak = streak;
@@ -178,7 +177,7 @@ function finishDeath() {
   $('dead-detail').textContent =
     `${Math.floor(s.distance).toLocaleString('en-US')}m · ⚡x${s.peakMult.toFixed(1)} peak`;
   $('dead-best').textContent = isBest ? '🏆 new best' :
-    `best ${store.get(mode === 'daily' ? 'best.daily.' + today : 'best.endless', 0).toLocaleString('en-US')}`;
+    `best ${bestFor(mode, today, run.diffKey).toLocaleString('en-US')}`;
   $('dead-streak').textContent = mode === 'daily' && streak > 1 ? `🔥 ${streak}-day streak` : '';
   setTimeout(() => deadOv.classList.remove('hidden'), 650);
 }
@@ -217,6 +216,19 @@ function toggleMute() {
 }
 $('mute').addEventListener('click', (e) => { e.stopPropagation(); audio.start(); toggleMute(); });
 
+// per-difficulty bests; pre-0.3.0 saves count as flow's
+function bestKey(m, today, dk) {
+  return m === 'daily' ? `best.daily.${today}.${dk}` : `best.endless.${dk}`;
+}
+function bestFor(m, today, dk) {
+  let best = store.get(bestKey(m, today, dk), 0);
+  if (dk === 'flow') {
+    const legacy = store.get(m === 'daily' ? 'best.daily.' + today : 'best.endless', 0);
+    best = Math.max(best, legacy);
+  }
+  return best;
+}
+
 function updateModeButtons() {
   for (const el of document.querySelectorAll('[data-mode]')) {
     el.classList.toggle('active', el.dataset.mode === mode);
@@ -225,12 +237,12 @@ function updateModeButtons() {
 }
 function statsLine() {
   const today = dailySeedString();
+  const best = bestFor(mode, today, diffKey);
   if (mode === 'daily') {
-    const best = store.get('best.daily.' + today, 0);
     const streak = store.get('daily.streak', 0);
-    return `${today} · best ${best.toLocaleString('en-US')}` + (streak > 1 ? ` · 🔥${streak}` : '');
+    return `${today} · ${diffKey} best ${best.toLocaleString('en-US')}` + (streak > 1 ? ` · 🔥${streak}` : '');
   }
-  return `endless · best ${store.get('best.endless', 0).toLocaleString('en-US')}`;
+  return `endless · ${diffKey} best ${best.toLocaleString('en-US')}`;
 }
 for (const el of document.querySelectorAll('[data-mode]')) {
   el.addEventListener('click', (e) => {
@@ -241,6 +253,22 @@ for (const el of document.querySelectorAll('[data-mode]')) {
   });
 }
 
+function updateDiffButtons() {
+  for (const el of document.querySelectorAll('[data-diff]')) {
+    el.classList.toggle('active', el.dataset.diff === diffKey);
+  }
+  $('title-stats').textContent = statsLine();
+}
+for (const el of document.querySelectorAll('[data-diff]')) {
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    diffKey = el.dataset.diff;
+    store.set('difficulty', diffKey);
+    updateDiffButtons();
+    if (state === 'title') titleCanyon = makeCanyon(currentSeed(), diff());
+  });
+}
+
 $('again').addEventListener('click', (e) => { e.stopPropagation(); startRun(); });
 $('share').addEventListener('click', async (e) => {
   e.stopPropagation();
@@ -248,6 +276,7 @@ $('share').addEventListener('click', async (e) => {
   const card = shareCard({
     mode, dateStr: dailySeedString(), distance: s.distance,
     peakMult: s.peakMult, streak: run.streak || 0, best: !!run.isBest,
+    difficulty: run.diffKey,
   });
   try {
     await navigator.clipboard.writeText(card);
@@ -305,7 +334,7 @@ function update(dt, time) {
   }
 
   if (state === 'playing') {
-    const speed = speedAt(run.t);
+    const speed = speedAt(run.t, run.diff);
     run.t += dt;
     run.z += speed * dt;
 
@@ -320,7 +349,7 @@ function update(dt, time) {
 
     const wd = wallDistance(run.canyon, run.px, run.py, run.z);
     const near = updateScore(run.score, dt, speed, wd, f.threshold);
-    const speed01 = Math.max(0, Math.min(1, (speed - 26) / 110));
+    const speed01 = Math.max(0, Math.min(1, (speed - run.diff.speedBase) / 110));
     audio.setSpeed(speed01);
 
     // near-miss events: rising edge + every 0.45s sustained
@@ -378,7 +407,7 @@ function render(time) {
   } else {
     z = run.z;
     player = [run.px, run.py, run.z];
-    speed01 = Math.max(0, Math.min(1, (speedAt(run.t) - 26) / 110));
+    speed01 = Math.max(0, Math.min(1, (speedAt(run.t, run.diff) - run.diff.speedBase) / 110));
   }
 
   // eased chase camera
@@ -426,7 +455,7 @@ function hudTick() {
   if (!debugPanel.classList.contains('hidden')) {
     $('debug-stats').textContent =
       `${fpsEma.toFixed(0)}fps · ${renderer.kind} @${renderer.getScale().toFixed(2)} · ` +
-      (run ? `v=${speedAt(run.t).toFixed(0)} mult=${run.score.mult.toFixed(2)}` : 'attract') +
+      (run ? `${run.diffKey} v=${speedAt(run.t, run.diff).toFixed(0)} mult=${run.score.mult.toFixed(2)}` : 'attract') +
       ` · particles=${particles.count()}`;
   }
 }
@@ -457,13 +486,14 @@ function frame(time) {
 // ---------- boot ----------
 async function boot() {
   resize();
-  titleCanyon = makeCanyon(currentSeed());
+  titleCanyon = makeCanyon(currentSeed(), diff());
   renderer = await chooseRenderer(titleCanyon);
   audio.setMuted(store.get('muted', false));
   $('mute').textContent = store.get('muted', false) ? '🔇' : '🔊';
   $('version').textContent = 'v' + VERSION;
   $('title-date').textContent = dailySeedString();
   updateModeButtons();
+  updateDiffButtons();
   updateFeelButtons();
   state = 'title';
   titleOv.classList.remove('hidden');
