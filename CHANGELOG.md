@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 — 2026-06-11
+- Stardust: the mote sheds a subtle comet trail of world-space dust that recedes and parallaxes as you fly (sells the 3D depth). Toggle in options ("stardust" on/off, persisted, default on). Spawn rate scales with speed; visual-only — no gameplay effect.
+- Menu redesign: title and death screens slimmed to essentials; all choices moved into a grouped ⚙ options sheet — **course** (daily/endless), **intensity** (glide/flow/surge), **stardust** (on/off). Sheet backdrop swallows presses (can't accidentally launch), Esc or done closes, returns to wherever it was opened from.
+
 ## 0.3.0 — 2026-06-11
 - Difficulty select: **glide** (chill — wider canyon, gentler bends, slower ramp), **flow** (the original tuning, still the default), **surge** (expert — faster ramp, narrower walls, wilder wander). Buttons on title + death screens, persisted.
 - Difficulty shapes the canyon itself (envK/shrink/wander baked into the canyon object, mirrored as shader uniforms) and the speed curve — not just a score scalar.

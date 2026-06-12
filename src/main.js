@@ -45,6 +45,9 @@ let mode = store.get('mode', 'daily');
 let feelKey = store.get('feel', 'B');
 let diffKey = store.get('difficulty', 'flow');
 let hueDrift = store.get('hueDrift', true); // off = classic all-cyan (v0.1.0 look)
+let dustOn = store.get('stardust', true);
+let dustAcc = 0;
+let optionsReturn = null; // which overlay the options sheet came from
 let godMode = false;
 let hold = false;
 let run = null;
@@ -184,6 +187,7 @@ function finishDeath() {
 
 // ---------- input ----------
 function press() {
+  if (!$('options').classList.contains('hidden')) return; // sheet open: no flying
   audio.start();
   if (state === 'title') { startRun(); hold = true; }
   else if (state === 'dead' && performance.now() - deadAt > 600) { startRun(); hold = true; }
@@ -197,6 +201,10 @@ window.addEventListener('pointercancel', release);
 window.addEventListener('blur', release);
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+  if (e.code === 'Escape') {
+    if (!$('options').classList.contains('hidden')) $('options-done').click();
+    return;
+  }
   if (e.code === 'Backquote') { debugPanel.classList.toggle('hidden'); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
   press();
@@ -266,6 +274,35 @@ for (const el of document.querySelectorAll('[data-diff]')) {
     store.set('difficulty', diffKey);
     updateDiffButtons();
     if (state === 'title') titleCanyon = makeCanyon(currentSeed(), diff());
+  });
+}
+
+// options sheet
+function openOptions(from) {
+  optionsReturn = from;
+  $(from).classList.add('hidden');
+  $('options').classList.remove('hidden');
+}
+$('title-options').addEventListener('click', (e) => { e.stopPropagation(); openOptions('title'); });
+$('dead-options').addEventListener('click', (e) => { e.stopPropagation(); openOptions('dead'); });
+$('options-done').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('options').classList.add('hidden');
+  if (optionsReturn) $(optionsReturn).classList.remove('hidden');
+  optionsReturn = null;
+});
+
+function updateDustButtons() {
+  for (const el of document.querySelectorAll('[data-dust]')) {
+    el.classList.toggle('active', el.dataset.dust === (dustOn ? 'on' : 'off'));
+  }
+}
+for (const el of document.querySelectorAll('[data-dust]')) {
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dustOn = el.dataset.dust === 'on';
+    store.set('stardust', dustOn);
+    updateDustButtons();
   });
 }
 
@@ -388,6 +425,25 @@ function update(dt, time) {
     attractZ += 18 * dt;
   }
 
+  // stardust shed by the mote into world space
+  if (dustOn && (state === 'playing' || state === 'title')) {
+    let pos, rate;
+    if (state === 'playing') {
+      const s01 = Math.max(0, Math.min(1, (speedAt(run.t, run.diff) - run.diff.speedBase) / 110));
+      rate = 70 * (0.6 + s01);
+      pos = [run.px, run.py, run.z];
+    } else {
+      const c = canyonCenter(titleCanyon, attractZ);
+      rate = 22;
+      pos = [c.x, c.y, attractZ];
+    }
+    dustAcc += rate * dt;
+    while (dustAcc >= 1) {
+      dustAcc -= 1;
+      particles.spawnDust(pos[0], pos[1], pos[2]);
+    }
+  }
+
   // decay envelopes
   shake *= Math.exp(-dt * 5.5);
   flash *= Math.exp(-dt * 7);
@@ -440,7 +496,7 @@ function render(time) {
     dim: state === 'dead' ? 0.55 : 1,
     tint: tintAt(z),
   });
-  particles.draw();
+  particles.draw((p) => renderer.project(p, cssW, cssH));
 }
 
 // ---------- HUD + adaptive quality ----------
@@ -491,9 +547,10 @@ async function boot() {
   audio.setMuted(store.get('muted', false));
   $('mute').textContent = store.get('muted', false) ? '🔇' : '🔊';
   $('version').textContent = 'v' + VERSION;
-  $('title-date').textContent = dailySeedString();
+  $('opt-date').textContent = dailySeedString();
   updateModeButtons();
   updateDiffButtons();
+  updateDustButtons();
   updateFeelButtons();
   state = 'title';
   titleOv.classList.remove('hidden');

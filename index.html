@@ -76,6 +76,19 @@
     box-shadow: 0 0 14px rgba(25,242,255,.5);
   }
   .row { display: flex; gap: 12px; }
+  button.ghost {
+    background: none; border-color: rgba(25,242,255,.22);
+    font-size: 13px; opacity: .75;
+  }
+  #options {
+    background: rgba(4,3,26,.84);
+    gap: 3.2vh; z-index: 5;
+    pointer-events: auto; /* backdrop swallows presses; can't start a run from here */
+  }
+  .opt-group { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .opt-label { font-size: 12px; letter-spacing: .34em; opacity: .55; text-transform: uppercase; }
+  .opt-caption { font-size: 11px; opacity: .45; max-width: 80vw; }
+  #options-done { margin-top: 1vh; padding: .55em 2.4em; }
 
   #dead-score { font-size: clamp(40px, 9vw, 90px); letter-spacing: .1em; }
   #dead-best { color: var(--magenta); text-shadow: 0 0 14px rgba(255,40,220,.7); min-height: 1.2em; }
@@ -110,17 +123,8 @@
 <div id="title" class="overlay hidden">
   <h1>SLIPSTREAM</h1>
   <div class="sub">hold to rise · release to dive<br>graze the walls to charge the slipstream</div>
-  <div class="row">
-    <button data-mode="daily">daily <span id="title-date"></span></button>
-    <button data-mode="endless">endless</button>
-  </div>
-  <div class="row">
-    <button data-diff="glide" title="chill — wide canyon, gentle speed">glide</button>
-    <button data-diff="flow" title="the classic tuning">flow</button>
-    <button data-diff="surge" title="expert — fast, narrow, wild">surge</button>
-  </div>
-  <div class="stats">glide = chill · flow = classic · surge = expert</div>
   <div class="stats" id="title-stats"></div>
+  <button id="title-options" class="ghost">⚙ options</button>
   <div class="hint">press &amp; hold anywhere</div>
 </div>
 
@@ -133,15 +137,36 @@
     <button id="share">share</button>
     <button id="again">fly again</button>
   </div>
-  <div class="row">
-    <button data-mode="daily">daily</button>
-    <button data-mode="endless">endless</button>
+  <button id="dead-options" class="ghost">⚙ options</button>
+</div>
+
+<div id="options" class="overlay hidden">
+  <div class="opt-group">
+    <div class="opt-label">course</div>
+    <div class="row">
+      <button data-mode="daily">daily <span id="opt-date"></span></button>
+      <button data-mode="endless">endless</button>
+    </div>
+    <div class="opt-caption">daily = one shared canyon per UTC day, streaks · endless = fresh canyon every run</div>
   </div>
-  <div class="row">
-    <button data-diff="glide">glide</button>
-    <button data-diff="flow">flow</button>
-    <button data-diff="surge">surge</button>
+  <div class="opt-group">
+    <div class="opt-label">intensity</div>
+    <div class="row">
+      <button data-diff="glide">glide</button>
+      <button data-diff="flow">flow</button>
+      <button data-diff="surge">surge</button>
+    </div>
+    <div class="opt-caption">glide = chill &amp; wide · flow = classic · surge = fast &amp; narrow</div>
   </div>
+  <div class="opt-group">
+    <div class="opt-label">stardust</div>
+    <div class="row">
+      <button data-dust="on">on</button>
+      <button data-dust="off">off</button>
+    </div>
+    <div class="opt-caption">comet dust streaming off the mote</div>
+  </div>
+  <button id="options-done">done</button>
 </div>
 
 <div id="debug" class="hidden">

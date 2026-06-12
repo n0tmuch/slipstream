@@ -1,6 +1,6 @@
 {
   "name": "slipstream",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "One-button flow-state flight through an endless glowing canyon",
   "type": "module",
   "scripts": {
