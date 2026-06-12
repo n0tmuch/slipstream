@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 — 2026-06-11
+- Cloudflare deploy: live at https://slipstream.n0tmuch.workers.dev (Workers static assets, free tier). `wrangler.jsonc` + `.assetsignore` (keeps node_modules/tests/docs out of the upload — verified 404). Deploy with `npx wrangler deploy`. GitHub Pages remains live in parallel.
+- verify/run.js honors `PAGE_URL` env like the other harness scripts.
+
 ## 0.5.0 — 2026-06-11
 - Light trail replaces stardust: the mote now leaves a volumetric ribbon of light along its actual flight path, rendered in the raymarcher (chain of 16 glow points — bright/tight at the head, dimmer/wider with age). Tinted by the palette, heats toward magenta while skimming, bloomed by the post pass. Foreshortens when flying straight, arcs visibly on climbs/dives/bends.
 - Three.js fallback gets an additive polyline version of the same trail.

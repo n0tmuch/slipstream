@@ -22,7 +22,7 @@ A one-button flow-state flight game: a mote of light flying through an endless, 
 - Never break: determinism of `makeCanyon` (same seed → identical canyon), JS↔GLSL canyon-math parity, audio only after user gesture.
 
 ## Deploy policy
-- [x] Deploy after every green test run — push to `main` auto-publishes GitHub Pages (preview = production for this static page)
+- [x] Deploy after every green test run — push to `main` auto-publishes GitHub Pages, then `npx wrangler deploy` for Cloudflare (https://slipstream.n0tmuch.workers.dev — primary). Wrangler is OAuth'd to the user's Cloudflare account (rjh@rjharrison.com, subdomain n0tmuch).
 
 ## Session contract
 - [x] Tier 1 (iterative): every turn ships a complete reversible increment; tests gate commits; changelog logs changes
@@ -31,4 +31,4 @@ A one-button flow-state flight game: a mote of light flying through an endless, 
 - Main model: Fable 5 for design/debugging/shader work; delegate mechanical searches to cheap subagents
 
 ## Commands
-- test: `npm test`   serve: `npm run serve` (http://localhost:8765)   deploy: `git push` (Pages serves `main`)
+- test: `npm test`   serve: `npm run serve` (http://localhost:8765)   deploy: `git push && npx wrangler deploy`

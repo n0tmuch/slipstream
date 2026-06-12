@@ -1,0 +1,8 @@
+{
+  // Cloudflare Workers static-assets deploy (free tier) — `npx wrangler deploy`
+  "name": "slipstream",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": "./"
+  }
+}
